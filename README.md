@@ -7,10 +7,17 @@ Inspired by https://github.com/SonarCommunity/sonar-github
 
 **The version 2.1.0 is directly in the SonarQube update center**
 
-**Version 2.2.0-SNAPSHOT**
+**Version 3.0.0-SNAPSHOT**
 
+- For publish mode, get quality gate and print in global comment
+- For publish mode, get all new issues and print in inline and global comment
+- For publish mode, build breaker (status or exit) if quality gate is error or warn (option)
 - Api v4 is now default value
-- Add Sast report for GitLab EE
+- Add json report for GitLab EE, codeclimate or sast
+- Add filter for issues
+- Add information rule by issue
+
+**Download 3.0.0-rc1** https://github.com/gabrie-allaigre/sonar-gitlab-plugin/releases/download/3.0.0-rc1/sonar-gitlab-plugin-3.0.0-rc1.jar
 
 **Version 2.1.0**
 
@@ -56,13 +63,30 @@ Inspired by https://github.com/SonarCommunity/sonar-github
 Add to each **commit** GitLab in a global commentary on the new anomalies added by this **commit** and add comment lines of modified files.
 
 **Comment commits:**
+
 ![Comment commits](doc/sonar_global.jpg)
 
 **Comment line:**
+
 ![Comment line](doc/sonar_inline.jpg)
 
 **Add build line:**
+
 ![Add buids](doc/builds.jpg)
+
+**With quality gate global comment**
+
+![qualitygate](doc/quality_gate.png)
+
+**With generate code quality json file**
+
+![qualitygate](doc/codequality.png)
+
+**With generate SAST json file**
+
+![qualitygate](doc/sast.png)
+
+Works with Java, Php, Android, JavaScript, C#, etc..
 
 # Usage
 
@@ -90,43 +114,187 @@ For SonarQube >= 5.6:
 
 Example:
 
+### Issues mode (Preview) 
+
+With Maven
+
 ```shell
-mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.analysis.mode=preview -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID
+mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID
 ```
 
 or for comment inline in all commits of branch:
 
 ```shell
-mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.analysis.mode=preview -Dsonar.gitlab.commit_sha=$(git log --pretty=format:%H origin/master..$CI_BUILD_REF | tr '\n' ',') -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID -Dsonar.gitlab.unique_issue_per_inline=true 
+mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.commit_sha=$(git log --pretty=format:%H origin/master..$CI_BUILD_REF | tr '\n' ',') -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID -Dsonar.gitlab.unique_issue_per_inline=true 
 ```
 
+With SonarScanner
+
+```shell
+sonar-scanner -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID
+```
+
+With SonarScanner and node
+
+```shell
+npm run sonar-scanner -- -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID
+```
+
+With Gradle
+
+```shell
+./gradlew sonarqube -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID
+```
+
+### Publish mode (Analyse)
+
+With Maven
+
+```shell
+mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_ID -Dsonar.branch.name=$CI_BUILD_REF_NAME
+```
+
+Works with `sonar-scanner` and `gradle`
+
 ## GitLab CI
+
+> Set secret variable `SONAR_URL` and `SONAR_LOGIN`
 
 .gitlab-ci.yml sample for Maven project, comment last commit:
 
 ```yml
-sonarqube_preview:
-  script:
-    - git checkout origin/master
-    - git merge $CI_BUILD_REF --no-commit --no-ff
-    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.analysis.mode=preview -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME
-  stage: test
-  except:
-    - develop
-    - master
-    - /^hotfix_.*$/
-    - /.*-hotfix$/
-  tags:
-    - java
-
-sonarqube:
-  script:
-    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL
+sonarqube_master_job:
   stage: test
   only:
     - master
-  tags:
-    - java
+  script:
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN
+
+sonarqube_preview_feature_job:
+  stage: test
+  only:
+    - /^feature\/*/
+  script:
+    - git checkout origin/master
+    - git merge $CI_BUILD_REF --no-commit --no-ff
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME
+```
+
+With quality gate
+
+```yml
+sonarqube_master_job:
+  stage: test
+  only:
+    - master
+  script:
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME
+
+sonarqube_preview_feature_job:
+  stage: test
+  only:
+    - /^feature\/*/
+  script:
+    - git checkout origin/master
+    - git merge $CI_BUILD_REF --no-commit --no-ff
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME
+```
+
+If use SonarQube with `BranchPlugin`
+
+```yml
+sonarqube_master_job:
+  stage: test
+  only:
+    - master
+  script:
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME
+
+sonarqube_preview_feature_job:
+  stage: test
+  only:
+    - /^feature\/*/
+  script:
+    - git checkout origin/master
+    - git merge $CI_BUILD_REF --no-commit --no-ff
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.branch.name=$CI_BUILD_REF_NAME
+```
+
+For get code quality (`codeclimate.json`) in merge request (only GitLab EE https://docs.gitlab.com/ee/user/project/merge_requests/code_quality_diff.html)
+
+> Warning, master must have a `codequality.json`, use `commit-status` for notification mode (not mandatory)
+
+```yml
+stages:
+  ...
+  - test
+  - quality
+  ...
+sonarqube_master_job:
+  stage: test
+  only:
+    - master
+  script:
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.json_mode=CODECLIMATE -Dsonar.gitlab.failure_notification_mode=commit-status  
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - codeclimate.json
+
+sonarqube_preview_feature_job:
+  stage: test
+  only:
+    - /^feature\/*/
+  script:
+    - git checkout origin/master
+    - git merge $CI_BUILD_REF --no-commit --no-ff
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.json_mode=CODECLIMATE -Dsonar.gitlab.failure_notification_mode=commit-status
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - codeclimate.json
+
+codequality:
+  stage: quality
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo ok
+  artifacts:
+    paths:
+      - codeclimate.json
+```
+
+For get SAST (`gl-sast-report.json`) information in merge request (only GitLab EE https://docs.gitlab.com/ee/user/project/merge_requests/sast.html)
+
+```yml
+stages:
+  ...
+  - test
+  - quality
+  ...
+sonarqube_preview_feature_job:
+  stage: test
+  only:
+    - /^feature\/*/
+  script:
+    - git checkout origin/master
+    - git merge $CI_BUILD_REF --no-commit --no-ff
+    - mvn --batch-mode verify sonar:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.analysis.mode=preview -Dsonar.gitlab.project_id=$CI_PROJECT_PATH -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.gitlab.json_mode=SAST -Dsonar.gitlab.failure_notification_mode=commit-status
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - gl-sast-report.json
+
+sast:
+  stage: quality
+  only:
+    - /^feature\/*/
+  variables:
+    GIT_STRATEGY: none
+  artifacts:
+    paths:
+      - gl-sast-report.json
 ```
 
 | GitLab 8.x name | GitLab 9.x name |
@@ -165,7 +333,12 @@ https://docs.gitlab.com/ce/ci/variables/#9-0-renaming
 | sonar.gitlab.prefix_directory | Add prefix when create link for GitLab | Variable | >= 2.1.0 |
 | sonar.gitlab.api_version | GitLab API version (default v3) | Administration, Variable | >= 2.1.0 |
 | sonar.gitlab.all_issues | All issues new and old (default false, only new) | Administration, Variable | >= 2.1.0 |
-| sonar.gitlab.sast_report | Create a SAST report in root directory for GitLab EE (gl-sast-report.json) | Administration, Variable | >= 2.2.0 |
+| sonar.gitlab.json_mode | Create a json report in root for GitLab EE (codeclimate.json or gl-sast-report.json) | Project, Variable | >= 3.0.0 |
+| sonar.gitlab.query_max_retry | Max retry for wait finish analyse for publish mode | Administration, Variable | >= 3.0.0 |
+| sonar.gitlab.query_wait | Max retry for wait finish analyse for publish mode | Administration, Variable | >= 3.0.0 |
+| sonar.gitlab.quality_gate_fail_mode | Quality gate fail mode: error or warn (default error) | Administration, Variable | >= 3.0.0 |
+| sonar.gitlab.issue_filter | Filter on issue, if MAJOR then show only MAJOR, CRITICAL and BLOCKER (default INFO) | Administration, Variable | >= 3.0.0 |
+| sonar.gitlab.load_rules | Load rules for all issues (default false) | Administration, Variable | >= 3.0.0 |
 
 - Administration : **Settings** globals in SonarQube
 - Project : **Settings** of project in SonarQube
@@ -174,6 +347,8 @@ https://docs.gitlab.com/ce/ci/variables/#9-0-renaming
 # Configuration
 
 - In SonarQube: Administration -> General Settings -> GitLab -> **Reporting**. Set GitLab Url and Token
+
+> If sonar.gitlab.failure_notification_mode is commit-status then role is Developer else Reporter.
 
 ![Sonar settings](doc/sonar_admin_settings.jpg)
 
@@ -215,6 +390,15 @@ Usage : `${name}`
 | MAJOR | Severity | Major |
 | MINOR | Severity | Minor |
 | INFO | Severity | Info |
+| baseUrl | String | Url of SonarQube |
+| publishMode | Boolean | true if publish mode |
+| qualityGate | QualityGate | QualityGate |
+| OK | Status | Passed QualityGate & Condition status only Global Comment |
+| WARN | Status | Warning QualityGate & Condition status only Global Comment |
+| ERROR | Status | Failed QualityGate & Condition status only Global Comment |
+| CODE_SMELL | Rule Type | Code smell |
+| BUG | Rule Type | Bug |
+| VULNERABILITY | Rule Type | Vulnerability |
 
 ## Functions
 
@@ -235,7 +419,16 @@ Usage : `${name(arg1,arg2,...)}`
 | imageSeverity | Severity | String | Print a image by severity |
 | ruleLink | String | String | Get URL for rule in SonarQube |
 
-### Type 
+Usage : `${qualityGate.name(arg1,arg2,...)}`
+
+| name | arguments | type | description |
+| --- | --- | --- | --- |
+| conditions | Function none argument | List<Condition> | Get all conditions |
+| conditions | Function Status argument | List<Condition> | Get all conditions with Status|
+| conditionCount | Function none argument | Integer | Get size of all conditions |
+| conditionCount | Function Status argument | Integer | Get size conditions with Status|
+
+### Types 
 
 Usage : `${Issue.name}`
 
@@ -252,12 +445,52 @@ Usage : `${Issue.name}`
 | new | Boolean | New issue |
 | ruleLink | String | URL of rule in SonarQube |
 | src | String | File source |
+| rule | Rule | Rule information |
+
+Usage : `${Issue.rule.name}`
+
+| name | type | description |
+| --- | --- | --- |
+| key | String | Rule key |
+| repo | String | Rule repository |
+| name | String | Name of rule |
+| description | String | Description of rule |
+| type | Type | CODE_SMELL, BUG, VULNERABILITY |
+| debtRemFnType | String | Debt type |
+| debtRemFnBaseEffort | String | Debt effort |
+
+Usage : `${qualityGate.name}`
+
+| name | type | description |
+| --- | --- | --- |
+| status | Status | Status of quality gate |
+
+Usage : `${Condition.name}`
+
+| name | type | description |
+| --- | --- | --- |
+| status | Status | Status of condition |
+| actual | String | Actual value for metric |
+| warning | String | Warning value |
+| error | String | Error value |
+| metricKey | String | Metric key |
+| metricName | String | Metric name |
+| symbol | String | Symbol of condition <,>,=,!= |
 
 ## Examples
 
 ### Global
 
 ```injectedfreemarker
+<#if qualityGate??>
+SonarQube analysis indicates that quality gate is <@s status=qualityGate.status/>.
+<#list qualityGate.conditions() as condition>
+<@c condition=condition/>
+
+</#list>
+</#if>
+<#macro c condition>* ${condition.metricName} is <@s status=condition.status/>: Actual value ${condition.actual} is ${condition.symbol}<#if condition.status != OK && condition.message?? && condition.message?trim?has_content> (${condition.message})</#if></#macro>
+<#macro s status><#if status == OK>passed<#elseif status == WARN>warning<#elseif status == ERROR>failed<#else>unknown</#if></#macro>
 <#assign newIssueCount = issueCount() notReportedIssueCount = issueCount(false)>
 <#assign hasInlineIssues = newIssueCount gt notReportedIssueCount extraIssuesTruncated = notReportedIssueCount gt maxGlobalIssues>
 <#if newIssueCount == 0>

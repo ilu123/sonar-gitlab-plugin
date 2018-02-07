@@ -17,21 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package com.talanlabs.sonar.plugins.gitlab.freemarker;
+package com.talanlabs.sonar.plugins.gitlab.models;
 
-import com.talanlabs.sonar.plugins.gitlab.models.ReportIssue;
+public enum JsonMode {
 
-import java.util.List;
-import java.util.stream.Stream;
+    NONE, CODECLIMATE, SAST;
 
-public class IssueCountTemplateMethodModelEx extends AbstractIssuesTemplateMethodModelEx {
-
-    public IssueCountTemplateMethodModelEx(List<ReportIssue> reportIssues) {
-        super(reportIssues);
+    public static JsonMode of(String name) {
+        for (JsonMode m : values()) {
+            if (m.name().equals(name)) {
+                return m;
+            }
+        }
+        return null;
     }
 
-    @Override
-    protected Object exec(Stream<ReportIssue> stream) {
-        return (int) stream.count();
-    }
 }

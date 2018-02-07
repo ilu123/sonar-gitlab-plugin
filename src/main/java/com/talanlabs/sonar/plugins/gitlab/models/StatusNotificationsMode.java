@@ -17,21 +17,28 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package com.talanlabs.sonar.plugins.gitlab.freemarker;
+package com.talanlabs.sonar.plugins.gitlab.models;
 
-import com.talanlabs.sonar.plugins.gitlab.models.ReportIssue;
+public enum StatusNotificationsMode {
 
-import java.util.List;
-import java.util.stream.Stream;
+    COMMIT_STATUS("commit-status"), EXIT_CODE("exit-code"), NOTHING("nothing");
 
-public class IssueCountTemplateMethodModelEx extends AbstractIssuesTemplateMethodModelEx {
+    private final String meaning;
 
-    public IssueCountTemplateMethodModelEx(List<ReportIssue> reportIssues) {
-        super(reportIssues);
+    StatusNotificationsMode(String meaning) {
+        this.meaning = meaning;
     }
 
-    @Override
-    protected Object exec(Stream<ReportIssue> stream) {
-        return (int) stream.count();
+    public static StatusNotificationsMode of(String meaning) {
+        for (StatusNotificationsMode m : values()) {
+            if (m.meaning.equals(meaning)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    public String getMeaning() {
+        return meaning;
     }
 }

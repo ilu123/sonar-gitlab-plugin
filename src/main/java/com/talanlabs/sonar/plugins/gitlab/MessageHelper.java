@@ -17,21 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package com.talanlabs.sonar.plugins.gitlab.freemarker;
+package com.talanlabs.sonar.plugins.gitlab;
 
-import com.talanlabs.sonar.plugins.gitlab.models.ReportIssue;
+public class MessageHelper {
 
-import java.util.List;
-import java.util.stream.Stream;
+    public static final String FAILED_GITLAB_STATUS = "failed";
+    public static final String SUCCESS_GITLAB_STATUS = "success";
 
-public class IssueCountTemplateMethodModelEx extends AbstractIssuesTemplateMethodModelEx {
-
-    public IssueCountTemplateMethodModelEx(List<ReportIssue> reportIssues) {
-        super(reportIssues);
+    private MessageHelper() {
+        // Nothing
     }
 
-    @Override
-    protected Object exec(Stream<ReportIssue> stream) {
-        return (int) stream.count();
+    public static String sonarQubeFailed(String message) {
+        return String.format("SonarQube failed to complete the review of this commit: %s", message);
     }
+
 }
